@@ -24,6 +24,7 @@
 //                 GLOBAL VARIABLES -- Start
 //*****************************************************************************
 unsigned long  g_ulDestinationIP; // IP address of destination server
+HTTPCli_Struct httpClient;
 
 unsigned char g_buff[MAX_BUFF_SIZE+1];
 long bytesReceived = 0; // variable to store the file size
@@ -38,59 +39,46 @@ extern uVectorEntry __vector_table;
 //                 GLOBAL VARIABLES -- End
 //*****************************************************************************
 
-//*****************************************************************************
-//
-//! \brief Handler for parsing JSON data
-//!
-//! \param[in]  ptr - Pointer to http response body data
-//!
-//! \return 0 on success else error code on failure
-//!
-//*****************************************************************************
-int ParseJSONData(char *ptr)
+static int get_mp3(char *buff, char songs[][128], int max)
 {
-	long lRetVal = 0;
-    int noOfToken;
-    jsmn_parser parser;
-    jsmntok_t   *tokenList;
+    char *ptr;
+    char *end;
+    int i,j,k,index;
+    char b[256] = {0};
 
+    ptr = buff;
 
-    /* Initialize JSON PArser */
-    jsmn_init(&parser);
+	index = 0;
 
-    /* Get number of JSON token in stream as we we dont know how many tokens need to pass */
-    noOfToken = jsmn_parse(&parser, (const char *)ptr, strlen((const char *)ptr), NULL, 10);
-    if(noOfToken <= 0)
+	while(strlen(songs[index]) && index < max)
+		index++;
+    while(index < max)
     {
-    	UART_PRINT("Failed to initialize JSON parser\n\r");
-    	return -1;
+		ptr = strstr(ptr, "url\":");
 
+		end = strstr(ptr, "mp3");
+
+		if(ptr == 0 || end == 0)
+			break;
+		j = end - ptr;
+		ptr += 6;
+		k = 0;
+		memset(b, '\0', sizeof(b));
+		for(i = 0; i < j - 3; i++)
+		{
+			if (*(ptr + i) == '\\')
+			{
+				k++;
+
+			}
+			else
+				b[i-k] = *(ptr + i);
+		}
+		memcpy(songs[index++], b, strlen(b));
+		UART_PRINT("[paras: %s]\r\n", b);
     }
-
-    /* Allocate memory to store token */
-    tokenList = (jsmntok_t *) malloc(noOfToken*sizeof(jsmntok_t));
-    if(tokenList == NULL)
-    {
-        UART_PRINT("Failed to allocate memory: %d\n\r", noOfToken*sizeof(jsmntok_t));
-        return -1;
-    }
-
-    /* Initialize JSON Parser again */
-    jsmn_init(&parser);
-    noOfToken = jsmn_parse(&parser, (const char *)ptr, strlen((const char *)ptr), tokenList, noOfToken);
-    if(noOfToken < 0)
-    {
-    	UART_PRINT("Failed to parse JSON tokens\n\r");
-    	lRetVal = noOfToken;
-    }
-    else
-    {
-    	UART_PRINT("Successfully parsed %ld JSON tokens\n\r", noOfToken);
-    }
-
-    free(tokenList);
-
-    return lRetVal;
+    //UART_PRINT("paras over\r\n");
+    return index;
 }
 
 /*!
@@ -104,10 +92,9 @@ int ParseJSONData(char *ptr)
 
     \warning
 */
-static int readResponse(HTTPCli_Handle httpClient)
+static int readResponse(HTTPCli_Handle httpClient, char list[][128], int num)
 {
 	long lRetVal = 0;
-	int bytesRead = 0;
 	int id = 0;
 	unsigned long len = 0;
 	int json = 0;
@@ -128,24 +115,8 @@ static int readResponse(HTTPCli_Handle httpClient)
 		{
 		case 200:
 		{
-			UART_PRINT("HTTP Status 200\n\r");
-			/*
-                 Set response header fields to filter response headers. All
-                  other than set by this call we be skipped by library.
-			 */
 			HTTPCli_setResponseFields(httpClient, (const char **)ids);
 
-			/* Read filter response header and take appropriate action. */
-			/* Note:
-                    1. id will be same as index of fileds in filter array setted
-                    in previous HTTPCli_setResponseFields() call.
-
-                    2. moreFlags will be set to 1 by HTTPCli_getResponseField(), if  field
-                    value could not be completely read. A subsequent call to
-                    HTTPCli_getResponseField() will read remaining field value and will
-                    return HTTPCli_FIELD_ID_DUMMY. Please refer HTTP Client Libary API
-                    documenation @ref HTTPCli_getResponseField for more information.
-			 */
 			while((id = HTTPCli_getResponseField(httpClient, (char *)g_buff, sizeof(g_buff), &moreFlags))
 					!= HTTPCli_FIELD_ID_END)
 			{
@@ -163,22 +134,6 @@ static int readResponse(HTTPCli_Handle httpClient)
 				break;
 				case 2: /* HTTPCli_FIELD_NAME_CONTENT_TYPE */
 				{
-					if(strstr((const char *)g_buff, "application/json"))
-					{
-						json = 1;
-						UART_PRINT(HTTPCli_FIELD_NAME_CONTENT_TYPE);
-						UART_PRINT(" : ");
-						UART_PRINT("application/json\n\r");
-					}
-					else
-					{
-						/* Note:
-                                Developers are advised to use appropriate
-                                content handler. In this example all content
-                                type other than json are treated as plain text.
-						 */
-						json = 0;
-					}
 
 				}
 				break;
@@ -190,74 +145,25 @@ static int readResponse(HTTPCli_Handle httpClient)
 				}
 				}
 			}
-			bytesRead = 0;
-
-			if(len > sizeof(g_buff))
-			{
-				dataBuffer = (char *) malloc(len);
-				if(dataBuffer == NULL)
-				{
-					UART_PRINT("Failed to allocate memory\n\r");
-					lRetVal = -1;
-					goto end;
-				}
-			}
-			else
-			{
-				dataBuffer = (char *)g_buff;
-			}
-
-			/* Read response data/body */
-			/* Note:
-                    moreFlag will be set to 1 by HTTPCli_readResponseBody() call, if more
-		            data is available Or in other words content length > length of buffer.
-		            The remaining data will be read in subsequent call to HTTPCli_readResponseBody().
-		            Please refer HTTP Client Libary API documenation @ref HTTPCli_readResponseBody
-		            for more information
-
-			 */
 
 			int cnt = 0;
 			  while (len > cnt) {
-				  cnt += HTTPCli_readRawResponseBody(httpClient, dataBuffer + cnt, (len - cnt));
-				  UART_PRINT("rcv: %d/%d\r\n", cnt, len);
-			  // process buf data and save
+				  cnt += HTTPCli_readRawResponseBody(httpClient, g_buff + cnt, (len - cnt));
 			  }
-			  dataBuffer[len] = '\0';
-			  UART_PRINT("body is %c,%c,%c --end\r\n", dataBuffer[len-4], dataBuffer[len-3],dataBuffer[len-2]);
-			if(json)
-			{
-				/* Parse JSON data */
-				lRetVal = ParseJSONData(dataBuffer);
+			  g_buff[len] = '\0';
+
+				lRetVal = get_mp3(g_buff, list, num);
 				if(lRetVal < 0)
 				{
 					goto end;
 				}
-			}
-			else
-			{
-				/* treating data as a plain text */
-
-			}
 
 		}
 		break;
 
 		case 404:
-			UART_PRINT("File not found. \r\n");
-			/* Handle response body as per requirement.
-                  Note:
-                    Developers are advised to take appopriate action for HTTP
-                    return status code else flush the response body.
-                    In this example we are flushing response body in default
-                    case for all other than 200 HTTP Status code.
-			 */
 		default:
-			/* Note:
-              Need to flush received buffer explicitly as library will not do
-              for next request.Apllication is responsible for reading all the
-              data.
-			 */
+
 			UART_PRINT("[HTTP] %d\r\n", lRetVal);
 			break;
 		}
@@ -287,7 +193,7 @@ end:
 //! \return 0 on success else error code on failure
 //!
 //*****************************************************************************
-static int HTTPGetMethod(HTTPCli_Handle httpClient)
+static int HTTPGetSong(HTTPCli_Handle httpClient, char songs[][128], int max)
 {
   
     long lRetVal = 0;
@@ -317,7 +223,7 @@ static int HTTPGetMethod(HTTPCli_Handle httpClient)
         return lRetVal;
     }
 
-    lRetVal = readResponse(httpClient);
+    lRetVal = readResponse(httpClient, songs, max);
 
     return lRetVal;
 }
@@ -368,7 +274,6 @@ static int ConnectToHTTPServer(HTTPCli_Handle httpClient)
 int request_song(char songs[][128], int max)
 {
     long lRetVal = -1;
-    HTTPCli_Struct httpClient;
 
     lRetVal = ConnectToHTTPServer(&httpClient);
     if(lRetVal < 0)
@@ -377,11 +282,22 @@ int request_song(char songs[][128], int max)
         return -1;
     }
 
-    lRetVal = HTTPGetMethod(&httpClient);
+    lRetVal = HTTPGetSong(&httpClient, songs, max);
 
     if(lRetVal < 0)
     {
-    	UART_PRINT("HTTP Post Get failed.\n\r");
+    	UART_PRINT("HTTP failed.\n\r");
     }
 
+
+    HTTPCli_disconnect(&httpClient);
 }
+/*
+int play_song(char *song)
+{
+	long lRetVal = -1;
+
+	lRetVal = HTTPPlaySong(&httpClient, uri);
+
+}
+*/
