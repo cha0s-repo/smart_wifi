@@ -26,8 +26,10 @@
 unsigned long  g_ulDestinationIP; // IP address of destination server
 HTTPCli_Struct httpClient;
 
-unsigned char g_buff[MAX_BUFF_SIZE+1];
-long bytesReceived = 0; // variable to store the file size
+char g_buff[MAX_BUFF_SIZE+1];
+char *g_pool = g_buff;
+
+unsigned char *h_name;
 
 #if defined(ccs) || defined(gcc)
 extern void (* const g_pfnVectors[])(void);
@@ -75,30 +77,17 @@ static int get_mp3(char *buff, char songs[][128], int max)
 				b[i-k] = *(ptr + i);
 		}
 		memcpy(songs[index++], b, strlen(b));
-		UART_PRINT("[paras: %s]\r\n", b);
+		//UART_PRINT("[paras: %s]\r\n", b);
     }
     //UART_PRINT("paras over\r\n");
     return index;
 }
 
-/*!
-    \brief This function read respose from server and dump on console
-
-    \param[in]      httpClient - HTTP Client object
-
-    \return         0 on success else -ve
-
-    \note
-
-    \warning
-*/
 static int readResponse(HTTPCli_Handle httpClient, char list[][128], int num)
 {
 	long lRetVal = 0;
 	int id = 0;
 	unsigned long len = 0;
-	int json = 0;
-	char *dataBuffer=NULL;
 	bool moreFlags = 1;
 	const char *ids[4] = {
 	                        HTTPCli_FIELD_NAME_CONTENT_LENGTH,
@@ -129,17 +118,11 @@ static int readResponse(HTTPCli_Handle httpClient, char list[][128], int num)
 				}
 				break;
 				case 1: /* HTTPCli_FIELD_NAME_CONNECTION */
-				{
-				}
-				break;
 				case 2: /* HTTPCli_FIELD_NAME_CONTENT_TYPE */
-				{
-
-				}
 				break;
 				default:
 				{
-					UART_PRINT("F-id\n\r");
+					ERR_PRINT(lRetVal);
 					lRetVal = -1;
 					goto end;
 				}
@@ -147,40 +130,34 @@ static int readResponse(HTTPCli_Handle httpClient, char list[][128], int num)
 			}
 
 			int cnt = 0;
-			  while (len > cnt) {
-				  cnt += HTTPCli_readRawResponseBody(httpClient, g_buff + cnt, (len - cnt));
-			  }
-			  g_buff[len] = '\0';
+			while (len > cnt) {
+				cnt += HTTPCli_readRawResponseBody(httpClient, g_buff + cnt, (len - cnt));
+			}
+			g_buff[len] = '\0';
 
-				lRetVal = get_mp3(g_buff, list, num);
-				if(lRetVal < 0)
-				{
-					goto end;
-				}
-
+			lRetVal = get_mp3(g_buff, list, num);
+			if(lRetVal < 0)
+			{
+				goto end;
+			}
 		}
 		break;
 
 		case 404:
 		default:
-
-			UART_PRINT("[HTTP] %d\r\n", lRetVal);
+			ERR_PRINT(lRetVal);
 			break;
 		}
 	}
 	else
 	{
-		UART_PRINT("F-rev.\r\n");
+		ERR_PRINT(lRetVal);
 		goto end;
 	}
 
 	lRetVal = 0;
 
 end:
-    if(len > sizeof(g_buff) && (dataBuffer != NULL))
-	{
-	    free(dataBuffer);
-    }
     return lRetVal;
 }
 
@@ -197,7 +174,7 @@ static int HTTPGetSong(HTTPCli_Handle httpClient, char songs[][128], int max)
 {
   
     long lRetVal = 0;
-    HTTPCli_Field fields[4] = {
+    HTTPCli_Field fields[] = {
                                 {HTTPCli_FIELD_NAME_HOST, HOST_NAME},
                                 {HTTPCli_FIELD_NAME_ACCEPT, "*/*"},
                                // {HTTPCli_FIELD_NAME_CONTENT_LENGTH, "0"},
@@ -205,7 +182,6 @@ static int HTTPGetSong(HTTPCli_Handle httpClient, char songs[][128], int max)
                                 {NULL, NULL}
                             };
     bool        moreFlags;
-
 
     /* Set request header fields to be send for HTTP request. */
     HTTPCli_setRequestFields(httpClient, fields);
@@ -219,7 +195,7 @@ static int HTTPGetSong(HTTPCli_Handle httpClient, char songs[][128], int max)
     lRetVal = HTTPCli_sendRequest(httpClient, HTTPCli_METHOD_GET, GET_URI, moreFlags);
     if(lRetVal < 0)
     {
-        UART_PRINT("Failed to send HTTP GET request.\n\r");
+        ERR_PRINT(lRetVal);
         return lRetVal;
     }
 
@@ -243,8 +219,8 @@ static int ConnectToHTTPServer(HTTPCli_Handle httpClient)
     struct sockaddr_in addr;
 
     /* Resolve HOST NAME/IP */
-    lRetVal = sl_NetAppDnsGetHostByName((signed char *)HOST_NAME,
-                                          strlen((const char *)HOST_NAME),
+    lRetVal = sl_NetAppDnsGetHostByName((signed char *)h_name,
+                                          strlen((const char *)h_name),
                                           &g_ulDestinationIP,SL_AF_INET);
 
     if(lRetVal < 0)
@@ -262,7 +238,7 @@ static int ConnectToHTTPServer(HTTPCli_Handle httpClient)
     lRetVal = HTTPCli_connect(httpClient, (struct sockaddr *)&addr, 0, NULL);
     if (lRetVal < 0)
     {
-        UART_PRINT("Connection to server failed. error(%d)\n\r", lRetVal);
+        ERR_PRINT(lRetVal);
         //ASSERT_ON_ERROR(SERVER_CONNECTION_FAILED);
     }    
 
@@ -274,11 +250,14 @@ static int ConnectToHTTPServer(HTTPCli_Handle httpClient)
 int request_song(char songs[][128], int max)
 {
     long lRetVal = -1;
+    HTTPCli_Struct httpClient;
+
+    h_name = HOST_NAME;
 
     lRetVal = ConnectToHTTPServer(&httpClient);
     if(lRetVal < 0)
     {
-        UART_PRINT("Connect server failed\r\n");
+        ERR_PRINT(lRetVal);
         return -1;
     }
 
@@ -286,18 +265,193 @@ int request_song(char songs[][128], int max)
 
     if(lRetVal < 0)
     {
-    	UART_PRINT("HTTP failed.\n\r");
+    	ERR_PRINT(lRetVal);
     }
 
 
     HTTPCli_disconnect(&httpClient);
+    return 0;
 }
-/*
-int play_song(char *song)
+int play(char *req)
 {
 	long lRetVal = -1;
+    HTTPCli_Struct httpClient;
 
-	lRetVal = HTTPPlaySong(&httpClient, uri);
+    int  transfer_len = 0;
 
+    char *pBuff = 0;
+    char *end = 0;
+
+    char host[64] = {0};
+
+    int i;
+
+    pBuff = strstr(req, "http://");
+    if (pBuff)
+    {
+        pBuff = req + 7;
+    }
+    else
+    {
+        pBuff = req;
+    }
+
+    end = strstr(pBuff, "/");
+
+    if (!end)
+    {
+        ERR_PRINT(0);
+        return -1;
+    }
+
+    for(i = 0; i + pBuff < end; i++ )
+    {
+        host[i] = *(pBuff + i);
+    }
+
+    host[i+1] = '\0';
+    pBuff = end;
+
+    h_name = host;
+
+    lRetVal = ConnectToHTTPServer(&httpClient);
+    if(lRetVal < 0)
+    {
+        ERR_PRINT(lRetVal);
+        return -1;
+    }
+	lRetVal = HTTPPlay(&httpClient, pBuff);
+
+    HTTPCli_disconnect(&httpClient);
+
+    return 0;
 }
-*/
+
+static int HTTPPlay(HTTPCli_Handle httpClient, unsigned char *uri)
+{
+  
+    long lRetVal = 0;
+    HTTPCli_Field fields[] = {
+                                {HTTPCli_FIELD_NAME_HOST, h_name},
+                                {HTTPCli_FIELD_NAME_ACCEPT, "*/*"},
+                               // {HTTPCli_FIELD_NAME_CONTENT_LENGTH, "0"},
+                                {HTTPCli_FIELD_NAME_USER_AGENT, "Mozilla/5.0 (Windows NT 6.1)"},
+                                {NULL, NULL}
+                            };
+    bool        moreFlags;
+
+    /* Set request header fields to be send for HTTP request. */
+    HTTPCli_setRequestFields(httpClient, fields);
+
+    /* Send GET method request. */
+    /* Here we are setting moreFlags = 0 as there are no more header fields need to send
+       at later stage. Please refer HTTP Library API documentaion @ HTTPCli_sendRequest
+       for more information.
+    */
+    moreFlags = 0;
+    lRetVal = HTTPCli_sendRequest(httpClient, HTTPCli_METHOD_GET, uri, moreFlags);
+    if(lRetVal < 0)
+    {
+        ERR_PRINT(lRetVal);
+        return lRetVal;
+    }
+
+    lRetVal = playSong(httpClient);
+
+    return lRetVal;
+}
+
+static int playSong(HTTPCli_Handle httpClient)
+{
+    long lRetVal = 0;
+    int id = 0;
+    unsigned long len = 0;
+
+    bool moreFlags = 1;
+    long bytesReceived = 0; 
+
+    const char *ids[4] = {
+                            HTTPCli_FIELD_NAME_CONTENT_LENGTH,
+                            HTTPCli_FIELD_NAME_CONNECTION,
+                            HTTPCli_FIELD_NAME_CONTENT_TYPE,
+                            NULL
+                         };
+
+    /* Read HTTP POST request status code */
+    lRetVal = HTTPCli_getResponseStatus(httpClient);
+    if(lRetVal > 0)
+    {
+        switch(lRetVal)
+        {
+        case 200:
+        {
+            HTTPCli_setResponseFields(httpClient, (const char **)ids);
+
+            while((id = HTTPCli_getResponseField(httpClient, (char *)g_buff, sizeof(g_buff), &moreFlags))
+                    != HTTPCli_FIELD_ID_END)
+            {
+
+                switch(id)
+                {
+                case 0: /* HTTPCli_FIELD_NAME_CONTENT_LENGTH */
+                {
+                    len = strtoul((char *)g_buff, NULL, 0);
+                }
+                break;
+                case 1: /* HTTPCli_FIELD_NAME_CONNECTION */
+                case 2: /* HTTPCli_FIELD_NAME_CONTENT_TYPE */
+                break;
+                default:
+                {
+                    
+                    ERR_PRINT(lRetVal);
+                    lRetVal = -1;
+                    goto end;
+                    
+                }
+                }
+            }
+
+            audio_play_start();
+
+            if (len <= 0)
+                len = 0xffffffff;
+
+            int cnt = 0;
+            bytesReceived = 0;
+            while (len > bytesReceived) {
+                cnt = HTTPCli_readRawResponseBody(httpClient, g_pool, (len - bytesReceived));
+                bytesReceived += cnt;
+
+                if (cnt > 0)
+                {
+                    audio_player(g_pool, cnt);
+                }
+                else
+                {
+                    ERR_PRINT(bytesReceived);
+                    break;
+                }
+            }
+            audio_play_end();
+        }
+        break;
+
+        case 404:
+        default:
+
+            ERR_PRINT(lRetVal);
+            break;
+        }
+    }
+    else
+    {
+        ERR_PRINT(lRetVal);
+        goto end;
+    }
+
+    lRetVal = 0;
+
+end:
+    return lRetVal;
+}

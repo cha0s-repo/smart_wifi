@@ -539,8 +539,8 @@ static long ConfigureSimpleLinkToDefaultState()
                                 &ucConfigLen, (unsigned char *)(&ver));
     ASSERT_ON_ERROR(lRetVal);
     
-    UART_PRINT("Host Driver Version: %s\n\r",SL_DRIVER_VERSION);
-    UART_PRINT("Build Version %d.%d.%d.%d.31.%d.%d.%d.%d.%d.%d.%d.%d\n\r",
+    //UART_PRINT("Host Driver Version: %s\n\r",SL_DRIVER_VERSION);
+    //UART_PRINT("Build Version %d.%d.%d.%d.31.%d.%d.%d.%d.%d.%d.%d.%d\n\r",
     ver.NwpVersion[0],ver.NwpVersion[1],ver.NwpVersion[2],ver.NwpVersion[3],
     ver.ChipFwAndPhyVersion.FwVersion[0],ver.ChipFwAndPhyVersion.FwVersion[1],
     ver.ChipFwAndPhyVersion.FwVersion[2],ver.ChipFwAndPhyVersion.FwVersion[3],
@@ -691,7 +691,7 @@ void WlanStationMode( void *pvParameters )
     {
         if (DEVICE_NOT_IN_STATION_MODE == lRetVal)
         {
-            UART_PRINT("Failed to configure\n\r");
+            ERR_PRINT(lRetVal);
         }
 
         LOOP_FOREVER();
@@ -704,7 +704,7 @@ void WlanStationMode( void *pvParameters )
     lRetVal = sl_Start(0, 0, 0);
     if (lRetVal < 0 || ROLE_STA != lRetVal)
     {
-        UART_PRINT("Failed to start the device \n\r");
+        ERR_PRINT(lRetVal);
         LOOP_FOREVER();
     }
 
@@ -714,7 +714,7 @@ void WlanStationMode( void *pvParameters )
     lRetVal = WlanConnect();
     if(lRetVal < 0)
     {
-        UART_PRINT("Failed to est\n\r");
+        ERR_PRINT(lRetVal);
         LOOP_FOREVER();
     }
 

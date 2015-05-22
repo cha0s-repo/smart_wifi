@@ -31,7 +31,7 @@ int fm_get_songs(void)
 
 int fm_play_song(char *song_url)
 {
-	//play_song(song_url);
+	play_song(song_url);
 	return 0;
 }
 
@@ -55,7 +55,7 @@ int fm_player(void)
 			song = song_list[index];
 			if (strlen(song))
 			{
-				Report("Going to play : %s\r\n", song);
+				Report("Next: %s\r\n", song);
 				 GPIO_IF_LedOn(MCU_ORANGE_LED_GPIO);
 				fm_play_song(song);
 				 GPIO_IF_LedOff(MCU_ORANGE_LED_GPIO);
@@ -63,7 +63,7 @@ int fm_player(void)
 			else
 			{
 				// wait for next try
-				Report("Cannot fitch a song to play, waiting for next try\r\n");
+				Report("Try again\r\n");
 				osi_Sleep(3000);
 				break;
 			}
