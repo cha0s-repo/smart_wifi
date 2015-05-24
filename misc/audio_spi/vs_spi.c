@@ -116,14 +116,17 @@ void vs_dcs(char cmd)
 int vs_write_cmd(char c)
 {
 	memset(g_ucTxBuff, '\0', 32);
+	memset(g_ucRxBuff, '\0', 32);
+
 	g_ucTxBuff[0] = c;
 
 	while(!vs_req());
 
+	ASSERT_CS();
     MAP_SPITransfer(GSPI_BASE,(unsigned char *)g_ucTxBuff,(unsigned char *)g_ucRxBuff,1,
                 SPI_CS_ENABLE|SPI_CS_DISABLE);
-
-	return 0;
+    DEASSERT_CS();
+	return g_ucRxBuff[0];
 }
 
 int vs_write_data(char *d, int len)

@@ -9,7 +9,7 @@
 #include <http/client/common.h>
 
 #include "http.h"
-#include "../misc/audio_spi/vs1053b.h"
+#include "../misc/audio_spi/player.h"
 
 // JSON Parser
 #include "jsmn.h"
@@ -412,8 +412,6 @@ static int playSong(HTTPCli_Handle httpClient)
                 }
             }
 
-            audio_play_start();
-
             if (len <= 0)
                 len = 0xffffffff;
 
@@ -425,7 +423,7 @@ static int playSong(HTTPCli_Handle httpClient)
 
                 if (cnt > 0)
                 {
-                    audio_player(g_pool, cnt);
+                    VS1053Play(g_pool, cnt);
                 }
                 else
                 {
@@ -433,7 +431,6 @@ static int playSong(HTTPCli_Handle httpClient)
                     break;
                 }
             }
-            audio_play_end();
         }
         break;
 
