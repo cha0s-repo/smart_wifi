@@ -127,8 +127,6 @@ extern uVectorEntry __vector_table;
 //****************************************************************************
 static long WlanConnect();
 void WlanStationMode( void *pvParameters );
-static long CheckLanConnection();
-static long CheckInternetConnection();
 static void InitializeAppVariables();
 static long ConfigureSimpleLinkToDefaultState();
 
@@ -539,14 +537,15 @@ static long ConfigureSimpleLinkToDefaultState()
                                 &ucConfigLen, (unsigned char *)(&ver));
     ASSERT_ON_ERROR(lRetVal);
     
-    //UART_PRINT("Host Driver Version: %s\n\r",SL_DRIVER_VERSION);
-    //UART_PRINT("Build Version %d.%d.%d.%d.31.%d.%d.%d.%d.%d.%d.%d.%d\n\r",
+    /*
+    UART_PRINT("Host Driver Version: %s\n\r",SL_DRIVER_VERSION);
+    UART_PRINT("Build Version %d.%d.%d.%d.31.%d.%d.%d.%d.%d.%d.%d.%d\n\r",
     ver.NwpVersion[0],ver.NwpVersion[1],ver.NwpVersion[2],ver.NwpVersion[3],
     ver.ChipFwAndPhyVersion.FwVersion[0],ver.ChipFwAndPhyVersion.FwVersion[1],
     ver.ChipFwAndPhyVersion.FwVersion[2],ver.ChipFwAndPhyVersion.FwVersion[3],
     ver.ChipFwAndPhyVersion.PhyVersion[0],ver.ChipFwAndPhyVersion.PhyVersion[1],
     ver.ChipFwAndPhyVersion.PhyVersion[2],ver.ChipFwAndPhyVersion.PhyVersion[3]);
-
+	*/
     // Set connection policy to Auto + SmartConfig 
     //      (Device's default connection policy)
     lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION, 
@@ -780,7 +779,7 @@ void FMPlayer(void *pvParameters)
 	}
 
 
-//	audio_init();
+	audio_init();
 //	audio_play_start();
 	UART_PRINT("Start fm...\r\n");
 	fm_player();

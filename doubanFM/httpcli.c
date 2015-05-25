@@ -18,7 +18,7 @@
 #define PORT			80
 #define GET_URI		"/j/app/radio/people?app_name=radio_desktop_win&version=100&channel=1&type=n"
 
-#define MAX_BUFF_SIZE       3072 //1460
+#define MAX_BUFF_SIZE       (1024 * 3) //1460
 
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- Start
@@ -272,7 +272,7 @@ int request_song(char songs[][128], int max)
     HTTPCli_disconnect(&httpClient);
     return 0;
 }
-int play(char *req)
+int play_song(char *req)
 {
 	long lRetVal = -1;
     HTTPCli_Struct httpClient;
@@ -331,14 +331,29 @@ static int HTTPPlay(HTTPCli_Handle httpClient, unsigned char *uri)
 {
   
     long lRetVal = 0;
-    HTTPCli_Field fields[] = {
-                                {HTTPCli_FIELD_NAME_HOST, h_name},
-                                {HTTPCli_FIELD_NAME_ACCEPT, "*/*"},
-                               // {HTTPCli_FIELD_NAME_CONTENT_LENGTH, "0"},
-                                {HTTPCli_FIELD_NAME_USER_AGENT, "Mozilla/5.0 (Windows NT 6.1)"},
-                                {NULL, NULL}
-                            };
     bool        moreFlags;
+
+    HTTPCli_Field f_host, f_accept, f_ua, f_null;
+    HTTPCli_Field fields[4];
+
+    f_host.name = HTTPCli_FIELD_NAME_HOST;
+    f_host.value = h_name;
+
+    f_accept.name = HTTPCli_FIELD_NAME_ACCEPT;
+    f_accept.value = "*/*";
+
+    f_ua.name = HTTPCli_FIELD_NAME_USER_AGENT;
+    f_ua.value = "Mozilla/5.0 (Windows NT 6.1)";
+
+    f_null.name = NULL;
+    f_null.value = NULL;
+
+    fields[0] = f_host;
+    fields[1] = f_accept;
+    fields[2] = f_ua;
+    fields[3] = f_null;
+
+
 
     /* Set request header fields to be send for HTTP request. */
     HTTPCli_setRequestFields(httpClient, fields);
@@ -420,9 +435,9 @@ static int playSong(HTTPCli_Handle httpClient)
             int cnt = 0;
             bytesReceived = 0;
             while (len > bytesReceived) {
-                cnt = HTTPCli_readRawResponseBody(httpClient, g_pool, (len - bytesReceived));
+                cnt = HTTPCli_readRawResponseBody(httpClient, g_pool, MAX_BUFF_SIZE);
                 bytesReceived += cnt;
-
+                //DBG_PRINT("play...[%d/%d]\r\n", bytesReceived, len);
                 if (cnt > 0)
                 {
                     audio_player(g_pool, cnt);
