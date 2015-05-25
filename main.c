@@ -766,7 +766,7 @@ BoardInit(void)
 void FMPlayer(void *pvParameters)
 {
 	// Init our player
-
+	audio_init();
 	// Check connection before lanuching
 	while(1)
 	{
@@ -779,7 +779,7 @@ void FMPlayer(void *pvParameters)
 	}
 
 
-	audio_init();
+
 //	audio_play_start();
 	UART_PRINT("Start fm...\r\n");
 	fm_player();
@@ -818,7 +818,7 @@ void main()
 
     // switch off all LEDs
     GPIO_IF_LedOff(MCU_ALL_LED_IND);
-    
+
     //
     // Start the SimpleLink Host
     //

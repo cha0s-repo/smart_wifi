@@ -427,7 +427,7 @@ static int playSong(HTTPCli_Handle httpClient)
                 }
             }
 
-            audio_play_start();
+            //audio_play_start();
 
             if (len <= 0)
                 len = 0xffffffff;
@@ -440,7 +440,7 @@ static int playSong(HTTPCli_Handle httpClient)
                 //DBG_PRINT("play...[%d/%d]\r\n", bytesReceived, len);
                 if (cnt > 0)
                 {
-                    audio_player(g_pool, cnt);
+                    audio_play_l(g_pool, cnt);
                 }
                 else
                 {
@@ -448,7 +448,7 @@ static int playSong(HTTPCli_Handle httpClient)
                     break;
                 }
             }
-            audio_play_end();
+            //audio_play_end();
         }
         break;
 

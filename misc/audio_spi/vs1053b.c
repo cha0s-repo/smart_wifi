@@ -11,7 +11,7 @@
 #include "vs_spi.h"
 
 // use global FIFO
-#define  AUDIO_FIFO_SIZE  (1024*8)
+#define  AUDIO_FIFO_SIZE  (1024*4)
 char* AUDIO_FIFO;
 unsigned int AUDIO_FIFO_HEAD = 0;
 unsigned int AUDIO_FIFO_TAIL = 0;
@@ -100,6 +100,7 @@ const char VS_WRITE = 0x02;
 #define VS_VOL                         (0x0B)   //Volume control
 //RAM Data
 #define VS_RAM_ENDFILLBYTE             (0x1E06)  //End fill byte
+#define VS_PLAYSPEED					(0x1e04)	//0,1 normal
 
 #define debug_msg			UART_PRINT
 
@@ -156,16 +157,17 @@ void delay_m(int m)
 
 unsigned short vs_read_reg(char addr)
 {
-	vs_cs(0);
+	vs_data_t ret;
+
 	vs_write_cmd(VS_READ);
 
 	vs_write_cmd(addr);
 
-	vs_write_cmd(0xff);
+	ret.b8[1] = vs_write_cmd(0xff);
 
-	vs_write_cmd(0xff);
-	vs_cs(1);
-	return 0;
+	ret.b8[0] = vs_write_cmd(0xff);
+
+	return ret.b16;
 }
 
 void vs_write_reg(char addr, short cmd)
@@ -174,7 +176,6 @@ void vs_write_reg(char addr, short cmd)
 
 	ret.b16 = cmd;
 
-	vs_cs(0);
 	vs_write_cmd(VS_WRITE);
 
 	vs_write_cmd(addr);
@@ -182,7 +183,7 @@ void vs_write_reg(char addr, short cmd)
 	vs_write_cmd(ret.b8[1]);
 
 	vs_write_cmd(ret.b8[0]);
-	vs_cs(1);
+
 }
 
 void vs_write_bass(void)
@@ -320,11 +321,10 @@ void audio_sin_test(void)
 	  vs_write_reg(VS_MODE, 0x0820);
 
 	  audio_set_volume(50);
-
-	  vs_spi_clk_data();
+	 // vs_spi_clk_data();
 	  vs_write_data(sin_start, 8);
 
-	  delay_m(20000);
+	  delay_m(3000);
 
 	  vs_write_data(sin_end, 8);
 
@@ -356,9 +356,10 @@ int audio_reset(void)
 	audio_soft_reset();
 	delay_m(100);
 
-	vs_write_reg(VS_CLOCKF, 0x6000);
+	vs_write_reg(VS_CLOCKF, 0x9800);
 
-	vs_spi_clk_data();
+	//vs_spi_clk_data();
+
 	return version_id;
 }
 
@@ -374,7 +375,7 @@ void audio_init(void)
 
 	delay_m(50);
 
-	AUDIO_FIFO_INIT();
+	//AUDIO_FIFO_INIT();
 	audio_sin_test();
 
 	vs_vol=DEFAULT_VOLUME;
@@ -414,11 +415,16 @@ int audio_play(int len)
 
 int audio_play_l(char *data, int len)
 {
+	int i = 0;
 
 	if (len <= 0)
 		return 0;
 
-	vs_write_data(data, len);
+	for (i = 0; i < len; i+=32)
+	{
+		vs_write_data((char *)(data + i), 32);
+	}
+	vs_write_data(data + (i - 32), 32- (i - len));
 	//audio_sin_test();
 	//Report("play %d\r\n", len);
 	return 1;
@@ -428,7 +434,7 @@ int audio_play_start(void)
 {
 	audio_soft_reset();
 	audio_set_volume(vs_vol);
-	vs_spi_clk_data();
+	//vs_spi_clk_data();
 
 	return 0;
 }
