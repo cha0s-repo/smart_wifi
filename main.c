@@ -539,13 +539,6 @@ static long ConfigureSimpleLinkToDefaultState()
                                 &ucConfigLen, (unsigned char *)(&ver));
     ASSERT_ON_ERROR(lRetVal);
     
-    //UART_PRINT("Host Driver Version: %s\n\r",SL_DRIVER_VERSION);
-    //UART_PRINT("Build Version %d.%d.%d.%d.31.%d.%d.%d.%d.%d.%d.%d.%d\n\r",
-    ver.NwpVersion[0],ver.NwpVersion[1],ver.NwpVersion[2],ver.NwpVersion[3],
-    ver.ChipFwAndPhyVersion.FwVersion[0],ver.ChipFwAndPhyVersion.FwVersion[1],
-    ver.ChipFwAndPhyVersion.FwVersion[2],ver.ChipFwAndPhyVersion.FwVersion[3],
-    ver.ChipFwAndPhyVersion.PhyVersion[0],ver.ChipFwAndPhyVersion.PhyVersion[1],
-    ver.ChipFwAndPhyVersion.PhyVersion[2],ver.ChipFwAndPhyVersion.PhyVersion[3]);
 
     // Set connection policy to Auto + SmartConfig 
     //      (Device's default connection policy)
@@ -726,6 +719,11 @@ void WlanStationMode( void *pvParameters )
     //
     //lRetVal = sl_Stop(SL_STOP_TIMEOUT);
 
+	audio_init();
+//	audio_play_start();
+	UART_PRINT("Start fm...\r\n");
+	fm_player();
+
     LOOP_FOREVER();
     
 }
@@ -780,7 +778,7 @@ void FMPlayer(void *pvParameters)
 	}
 
 
-//	audio_init();
+	audio_init();
 //	audio_play_start();
 	UART_PRINT("Start fm...\r\n");
 	fm_player();
@@ -835,13 +833,13 @@ void main()
     //
     lRetVal = osi_TaskCreate( WlanStationMode, \
                                 (const signed char*)"Wlan Station Task", \
-                                OSI_STACK_SIZE, NULL, 1, NULL );
+                                OSI_STACK_SIZE * 10, NULL, 1, NULL );
     if(lRetVal < 0)
     {
         ERR_PRINT(lRetVal);
         LOOP_FOREVER();
     }
-
+#if 0
     //
     // Start our app
     //
@@ -853,7 +851,7 @@ void main()
         ERR_PRINT(lRetVal);
         LOOP_FOREVER();
     }
-
+#endif
     //
     // Start the task scheduler
     //

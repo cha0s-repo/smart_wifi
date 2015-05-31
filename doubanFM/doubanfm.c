@@ -45,6 +45,8 @@ int fm_player(void)
 	while(1)
 	{
 		//fm_get_channel();
+		fm_play_song("http://wx-1196398119.ap-southeast-1.elb.amazonaws.com/static/t/tmp.mp3");
+		continue;
 
 		memset(song_list, '\0', sizeof(song_list));
 

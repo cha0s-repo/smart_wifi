@@ -15,6 +15,7 @@ int audio_player(char *data, int len);
 int audio_play_end();
 int audio_play_start(void);
 
+int audio_play_l(char *data, int len);
 
 
 #endif /* VS1053B_H_ */

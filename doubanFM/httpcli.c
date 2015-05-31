@@ -11,9 +11,6 @@
 #include "http.h"
 #include "../misc/audio_spi/vs1053b.h"
 
-// JSON Parser
-#include "jsmn.h"
-
 #define HOST_NAME		"www.douban.com"
 #define PORT			80
 #define GET_URI		"/j/app/radio/people?app_name=radio_desktop_win&version=100&channel=1&type=n"
@@ -272,7 +269,7 @@ int request_song(char songs[][128], int max)
     HTTPCli_disconnect(&httpClient);
     return 0;
 }
-int play(char *req)
+int play_song(char *req)
 {
 	long lRetVal = -1;
     HTTPCli_Struct httpClient;
@@ -420,12 +417,12 @@ static int playSong(HTTPCli_Handle httpClient)
             int cnt = 0;
             bytesReceived = 0;
             while (len > bytesReceived) {
-                cnt = HTTPCli_readRawResponseBody(httpClient, g_pool, (len - bytesReceived));
+                cnt = HTTPCli_readRawResponseBody(httpClient, g_pool, MAX_BUFF_SIZE);
                 bytesReceived += cnt;
-
+                DBG_PRINT("play...[%d:%d]\r\n", bytesReceived, len);
                 if (cnt > 0)
                 {
-                    audio_player(g_pool, cnt);
+                    audio_play_l(g_pool, cnt);
                 }
                 else
                 {
@@ -433,7 +430,7 @@ static int playSong(HTTPCli_Handle httpClient)
                     break;
                 }
             }
-            audio_play_end();
+//            audio_play_end();
         }
         break;
 

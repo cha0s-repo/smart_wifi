@@ -11,7 +11,7 @@
 #include "vs_spi.h"
 
 // use global FIFO
-#define  AUDIO_FIFO_SIZE  (1024*8)
+#define  AUDIO_FIFO_SIZE  (1024*4)
 char* AUDIO_FIFO;
 unsigned int AUDIO_FIFO_HEAD = 0;
 unsigned int AUDIO_FIFO_TAIL = 0;
@@ -324,7 +324,7 @@ void audio_sin_test(void)
 	  vs_spi_clk_data();
 	  vs_write_data(sin_start, 8);
 
-	  delay_m(20000);
+	  delay_m(2000);
 
 	  vs_write_data(sin_end, 8);
 
@@ -334,14 +334,14 @@ void audio_sin_test(void)
 void audio_soft_reset(void)
 {
 	vs_spi_clk_cmd();
-	vs_write_reg(VS_MODE, 0x800 | 0x04);
+	vs_write_reg(VS_MODE, 0x4800);
 
 	// set clk
 	vs_write_reg(VS_CLOCKF, 0x9800);
 
 	// reset the decode time
-	vs_write_reg(VS_DECODETIME, 0x0000);
-	vs_write_reg(VS_DECODETIME, 0x0000);
+	//vs_write_reg(VS_DECODETIME, 0x0000);
+	//vs_write_reg(VS_DECODETIME, 0x0000);
 }
 
 int audio_reset(void)
@@ -374,7 +374,7 @@ void audio_init(void)
 
 	delay_m(50);
 
-	AUDIO_FIFO_INIT();
+	//AUDIO_FIFO_INIT();
 	audio_sin_test();
 
 	vs_vol=DEFAULT_VOLUME;
@@ -414,11 +414,14 @@ int audio_play(int len)
 
 int audio_play_l(char *data, int len)
 {
-
+	int i =0;
 	if (len <= 0)
 		return 0;
-
-	vs_write_data(data, len);
+	for (i = 0; i < len; i+=32)
+	{
+		vs_write_data(data + i, 32);
+	}
+	vs_write_data(data + i - 32, len - (i - 32));
 	//audio_sin_test();
 	//Report("play %d\r\n", len);
 	return 1;
@@ -428,7 +431,7 @@ int audio_play_start(void)
 {
 	audio_soft_reset();
 	audio_set_volume(vs_vol);
-	vs_spi_clk_data();
+	//vs_spi_clk_data();
 
 	return 0;
 }

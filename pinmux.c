@@ -169,7 +169,7 @@ void PinMuxConfig(void)
     // Configure PIN_18 for GPIO Output
     //
 	MAP_PinTypeGPIO(PIN_18, PIN_MODE_0, false);
-	MAP_GPIODirModeSet(GPIOA3_BASE, 0x10, GPIO_DIR_MODE_OUT);
+	MAP_GPIODirModeSet(GPIOA3_BASE, 0x10, GPIO_DIR_MODE_IN);
 
 	//
     // Configure PIN_53 for GPIO Output
