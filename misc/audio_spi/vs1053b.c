@@ -10,44 +10,15 @@
 #include "vs1053b.h"
 #include "vs_spi.h"
 
+#define WITH_FIFO   1
+#if WITH_FIFO
 // use global FIFO
-#define  AUDIO_FIFO_SIZE  (1024*4)
-char* AUDIO_FIFO;
-unsigned int AUDIO_FIFO_HEAD = 0;
-unsigned int AUDIO_FIFO_TAIL = 0;
+#define  AUDIO_FIFO_SIZE  (1024*8)
+char AUDIO_FIFO[AUDIO_FIFO_SIZE];
+char *AUDIO_FIFO_HEAD = AUDIO_FIFO;
+char *AUDIO_FIFO_TAIL = AUDIO_FIFO;
 unsigned int AUDIO_FIFO_FULL = 0;
-
-/*
-#define AUDIO_FIFO_PUT(data, len)		do{	\
-	int i, space;	\
-	space = AUDIO_FIFO_SIZE - (AUDIO_FIFO_HEAD - AUDIO_FIFO_TAIL);	\
-	for(i = 0; i < space && i < len ; i++, AUDIO_FIFO_HEAD++)	\
-	{	\
-		AUDIO_FIFO[(AUDIO_FIFO_HEAD) % AUDIO_FIFO_SIZE] = data[i]; \
-	}	\
-	len = i; \
-	if ((0xFFFFFFFF - AUDIO_FIFO_HEAD) < i)	\
-	{	\
-		AUDIO_FIFO_HEAD = i - (0xFFFFFFFF - AUDIO_FIFO_HEAD) + AUDIO_FIFO_SIZE;	\
-		AUDIO_FIFO_TAIL = AUDIO_FIFO_SIZE - (0xFFFFFFFF - AUDIO_FIFO_TAIL);	\
-	}	\
-	AUDIO_FIFO_FULL = ((AUDIO_FIFO_HEAD - AUDIO_FIFO_TAIL) == AUDIO_FIFO_SIZE) ? 1:0;	\
-}while(0);
-
-#define AUDIO_FIFO_GET(data, len)		do{	\
-	int i = 0;		\
-	if(len > (AUDIO_FIFO_HEAD - AUDIO_FIFO_TAIL))	\
-		len = AUDIO_FIFO_HEAD - AUDIO_FIFO_TAIL;	\
-	for(i = 0; i < len; i++)	\
-		data[i] = AUDIO_FIFO[(AUDIO_FIFO_TAIL + i) % AUDIO_FIFO_SIZE];	\
-	AUDIO_FIFO_TAIL += len;	\
-	}while(0);
-
-
-#define AUDIO_FIFO_CLEAR(len)	do{	\
-	len = AUDIO_FIFO_HEAD - AUDIO_FIFO_TAIL;	\
-}while(0);
-*/
+#endif
 
 //----- DEFINES -----
 #define DEFAULT_VOLUME                 (40)     //   0 -   100 %
@@ -113,41 +84,33 @@ typedef union
 
 int vs_vol=0, vs_sbamp=0, vs_sbfreq=0, vs_stamp=0, vs_stfreq=0;
 
-int AUDIO_FIFO_PUT(char *data, int len)
-{	int i, space;
-	space = AUDIO_FIFO_SIZE - (AUDIO_FIFO_HEAD - AUDIO_FIFO_TAIL);
-	for(i = 0; i < space && i < len ; i++, AUDIO_FIFO_HEAD++)
-	{
-		AUDIO_FIFO[(AUDIO_FIFO_HEAD) % AUDIO_FIFO_SIZE] = data[i];
-	}
+#if WITH_FIFO
+int AUDIO_FIFO_FEED(char *data, int len)
+{	int i, j, space;
+	space = AUDIO_FIFO_SIZE - (AUDIO_FIFO_TAIL - AUDIO_FIFO_HEAD);
 
-	if ((0xFFFFFFFF - AUDIO_FIFO_HEAD) < i)
-	{
-		AUDIO_FIFO_HEAD = i - (0xFFFFFFFF - AUDIO_FIFO_HEAD) + AUDIO_FIFO_SIZE;
-		AUDIO_FIFO_TAIL = AUDIO_FIFO_SIZE - (0xFFFFFFFF - AUDIO_FIFO_TAIL);
-	}
-	AUDIO_FIFO_FULL = ((AUDIO_FIFO_HEAD - AUDIO_FIFO_TAIL) == AUDIO_FIFO_SIZE) ? 1:0;
+    i = (len > space) ? space:len;
+    memcpy(AUDIO_FIFO_TAIL, data, i);
 
-	return i;
+    AUDIO_FIFO_TAIL += i;
+
+    AUDIO_FIFO_FULL = ((AUDIO_FIFO_TAIL - AUDIO_FIFO_HEAD) >= AUDIO_FIFO_SIZE) ? 1:0;
+
+    return (len - i);
+
 }
 
-int AUDIO_FIFO_GET(char *data, int len)
+unsigned int AUDIO_FIFO_FLUSH(void)
 {
-	int i = 0;
-	if(len > (AUDIO_FIFO_HEAD - AUDIO_FIFO_TAIL))
-		len = AUDIO_FIFO_HEAD - AUDIO_FIFO_TAIL;
-	for(i = 0; i < len; i++)
-		data[i] = AUDIO_FIFO[(AUDIO_FIFO_TAIL + i) % AUDIO_FIFO_SIZE];
-	AUDIO_FIFO_TAIL += len;
+    unsigned int len = 0;
 
-	return i;
-}
+    len = AUDIO_FIFO_TAIL - AUDIO_FIFO_HEAD;
 
-int AUDIO_FIFO_INIT(void)
-{
-	AUDIO_FIFO = (char *)malloc(AUDIO_FIFO_SIZE * sizeof(char));
-	return 0;
+	AUDIO_FIFO_TAIL = AUDIO_FIFO_HEAD;
+
+	return len;
 }
+#endif
 
 void delay_m(int m)
 {
@@ -356,7 +319,7 @@ int audio_reset(void)
 	audio_soft_reset();
 	delay_m(100);
 
-	vs_write_reg(VS_CLOCKF, 0x6000);
+	vs_write_reg(VS_CLOCKF, 0x9800);
 
 	vs_spi_clk_data();
 	return version_id;
@@ -374,7 +337,6 @@ void audio_init(void)
 
 	delay_m(50);
 
-	//AUDIO_FIFO_INIT();
 	audio_sin_test();
 
 	vs_vol=DEFAULT_VOLUME;
@@ -390,25 +352,18 @@ void audio_init(void)
 	  vs_settrebleamp(vs_stamp);
 }
 
-int audio_play(int len)
+int audio_play(void)
 {
-	char *data;
+	int len;
 	int i = 0;
 
-	if (len <= 0)
-		return 0;
-
-	data = (char *)malloc(len * sizeof(*data));
-	len = AUDIO_FIFO_GET(data, len);
+	len = AUDIO_FIFO_FLUSH();
 
 	for(i = 32; i <= len; i += 32)
-		vs_write_data(data + (i - 32), 32);
+		vs_write_data(AUDIO_FIFO_HEAD + (i - 32), 32);
 	if((len + 32 - i) > 0)
-		vs_write_data(data + i - 32, len + 32 - i);
-	//audio_sin_test();
+		vs_write_data(AUDIO_FIFO_HEAD + i - 32, len + 32 - i);
 
-	free(data);
-	//Report("play %d\r\n", len);
 	return 1;
 }
 
@@ -438,7 +393,7 @@ int audio_play_start(void)
 
 int audio_play_end(void)
 {
-	audio_play(AUDIO_FIFO_HEAD - AUDIO_FIFO_TAIL);
+	audio_play();
 	return 0;
 }
 
@@ -446,20 +401,22 @@ int audio_player(char *data, int len)
 {
 	int i = 0;
 	int j = 0;
-
+#if WITH_FIFO
 	i = len;
 	while(i > 0)
 	{
-		i = AUDIO_FIFO_PUT(data + j, i);
+		i = AUDIO_FIFO_FEED((char *)(data + j), i);
 		if (AUDIO_FIFO_FULL)
 		{
-			audio_play(AUDIO_FIFO_SIZE);
+			audio_play();
 		}
-		j += i;
+		j = len - i;
 
-		len = len - i;
-		i = len;
 	}
+#else
+    audio_play_l(data, len);
+#endif
+
 	return len;
 
 }

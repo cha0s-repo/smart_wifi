@@ -722,7 +722,7 @@ void WlanStationMode( void *pvParameters )
 	audio_init();
 //	audio_play_start();
 	UART_PRINT("Start fm...\r\n");
-	fm_player();
+	remander_launcher();
 
     LOOP_FOREVER();
     
@@ -762,29 +762,6 @@ BoardInit(void)
     PRCMCC3200MCUInit();
 }
 
-void FMPlayer(void *pvParameters)
-{
-	// Init our player
-
-	// Check connection before lanuching
-	while(1)
-	{
-		if(!(IS_CONNECTED(g_ulStatus)))
-		{
-			osi_Sleep(5000);
-		}
-		else
-			break;
-	}
-
-
-	audio_init();
-//	audio_play_start();
-	UART_PRINT("Start fm...\r\n");
-	fm_player();
-
-	LOOP_FOREVER();
-}
 
 //*****************************************************************************
 //                            MAIN FUNCTION
@@ -839,19 +816,6 @@ void main()
         ERR_PRINT(lRetVal);
         LOOP_FOREVER();
     }
-#if 0
-    //
-    // Start our app
-    //
-    lRetVal = osi_TaskCreate( FMPlayer, \
-                                (const signed char*)"Douban FM Player", \
-                                OSI_STACK_SIZE * 8, NULL, 3, NULL );
-    if(lRetVal < 0)
-    {
-        ERR_PRINT(lRetVal);
-        LOOP_FOREVER();
-    }
-#endif
     //
     // Start the task scheduler
     //
