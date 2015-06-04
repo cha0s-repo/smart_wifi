@@ -84,6 +84,7 @@
 #include "common.h"
 #include "pinmux.h"
 
+#include "utils_if.h"
 //
 // Values for below macros shall be modified for setting the 'Ping' properties
 //
@@ -649,6 +650,23 @@ static long WlanConnect()
    
 }
 
+void EnterHIBernate()
+{
+	BMA222Open();
+
+    MAP_PRCMHibernateWakeupSourceEnable(PRCM_HIB_GPIO13);
+    MAP_PRCMHibernateWakeUpGPIOSelect(PRCM_HIB_GPIO13, PRCM_HIB_RISE_EDGE);
+
+    //
+    // powering down SPI Flash to save power
+    //
+    Utils_SpiFlashDeepPowerDown();
+    //
+    // Enter HIBernate mode
+    //
+    MAP_PRCMHibernateEnter();
+}
+
 //****************************************************************************
 //
 //! \brief Start simplelink, connect to the ap and run the ping test
@@ -720,9 +738,15 @@ void WlanStationMode( void *pvParameters )
     //lRetVal = sl_Stop(SL_STOP_TIMEOUT);
 
 	audio_init();
-//	audio_play_start();
-	UART_PRINT("Start fm...\r\n");
+
 	remander_launcher();
+
+	sl_WlanDisconnect();
+	sl_Stop(SL_STOP_TIMEOUT);
+	g_ulStatus = 0;
+
+	/* after wakeup the device will reset */
+	EnterHIBernate();
 
     LOOP_FOREVER();
     

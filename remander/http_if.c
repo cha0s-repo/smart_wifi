@@ -80,7 +80,7 @@ int HTTPGet(HTTPCli_Handle httpClient, char *uri)
     bool moreFlags = 1;
 
     HTTPCli_Field fields[] = {
-                                {HTTPCli_FIELD_NAME_HOST, h_name},
+                                {HTTPCli_FIELD_NAME_HOST, "wx-1196398119.ap-southeast-1.elb.amazonaws.com"},
                                 {HTTPCli_FIELD_NAME_ACCEPT, "*/*"},
                                // {HTTPCli_FIELD_NAME_CONTENT_LENGTH, "0"},
                                 {HTTPCli_FIELD_NAME_USER_AGENT, "Mozilla/5.0 (Windows NT 6.1)"},
@@ -132,7 +132,7 @@ int HTTPGet(HTTPCli_Handle httpClient, char *uri)
                 {
                     
                     ERR_PRINT(lRetVal);
-                    HTTPCli_disconnect(&httpClient);
+                    HTTPCli_disconnect(httpClient);
                     return -1;
                 }
                 }
@@ -144,7 +144,7 @@ int HTTPGet(HTTPCli_Handle httpClient, char *uri)
     }
     else
     {
-        HTTPCli_disconnect(&httpClient);
+        HTTPCli_disconnect(httpClient);
         return -1;
     }
 

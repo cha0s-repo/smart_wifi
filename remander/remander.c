@@ -25,27 +25,17 @@ int remander_launcher(void)
 	int len, i, ret;
 	char *buf;
 
+	len = http_open(REQ_URL);
 
-	while(1)
+	while(len > 0)
 	{
-		len = http_open(REQ_URL);
+		i = http_read(&buf);
 
-		if (ret > 0)
-		{
-			while(len)
-			{
-				i = http_read(&buf);
+		audio_player(buf, i);
 
-				audio_player(buf, i);
-
-				len -= i;
-			}
-			audio_play_end();
-		}
-
-		delay_m(2000);
-
+		len -= i;
 	}
+	audio_play_end();
 
 	return 0;
 }

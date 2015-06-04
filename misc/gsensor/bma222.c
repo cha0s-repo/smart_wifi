@@ -42,7 +42,7 @@
 //*****************************************************************************
 #include <stdio.h>
 #include <math.h>
-#include "bma222drv.h"
+#include "bma222.h"
 // Common interface includes
 #include "i2c_if.h"
 #include "uart_if.h"
@@ -134,6 +134,10 @@ BMA222Open()
 {
     /* set intr function, mapping to int1 to GPIO_13.
        when (any)motions detected, GPIO_13 will be pulled up */
+
+	I2C_IF_Open(I2C_MASTER_MODE_FST);
+
+	SetRegisterValue(0x21, 0x08);
     SetRegisterValue(0x16, 0xfe);
     SetRegisterValue(0x17, 0x1f);
     SetRegisterValue(0x19, 0xff);
