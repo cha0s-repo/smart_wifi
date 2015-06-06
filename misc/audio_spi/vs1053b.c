@@ -119,7 +119,6 @@ void delay_m(int m)
 
 unsigned short vs_read_reg(char addr)
 {
-	vs_cs(0);
 	vs_write_cmd(VS_READ);
 
 	vs_write_cmd(addr);
@@ -127,7 +126,7 @@ unsigned short vs_read_reg(char addr)
 	vs_write_cmd(0xff);
 
 	vs_write_cmd(0xff);
-	vs_cs(1);
+
 	return 0;
 }
 
@@ -137,7 +136,6 @@ void vs_write_reg(char addr, short cmd)
 
 	ret.b16 = cmd;
 
-	vs_cs(0);
 	vs_write_cmd(VS_WRITE);
 
 	vs_write_cmd(addr);
@@ -145,7 +143,7 @@ void vs_write_reg(char addr, short cmd)
 	vs_write_cmd(ret.b8[1]);
 
 	vs_write_cmd(ret.b8[0]);
-	vs_cs(1);
+
 }
 
 void vs_write_bass(void)
@@ -296,8 +294,16 @@ void audio_sin_test(void)
 
 void audio_soft_reset(void)
 {
+	char id;
+
 	vs_spi_clk_cmd();
-	vs_write_reg(VS_MODE, 0x4800);
+	vs_write_cmd(0x00);
+
+	id = vs_read_reg(VS_STATUS);
+
+	vs_write_reg(VS_MODE, 0x0816);
+
+	delay_m(10);
 
 	// set clk
 	vs_write_reg(VS_CLOCKF, 0x9800);
@@ -305,6 +311,10 @@ void audio_soft_reset(void)
 	// reset the decode time
 	//vs_write_reg(VS_DECODETIME, 0x0000);
 	//vs_write_reg(VS_DECODETIME, 0x0000);
+	vs_write_cmd(0x00);
+	vs_write_cmd(0x00);
+	vs_write_cmd(0x00);
+	vs_write_cmd(0x00);
 }
 
 int audio_reset(void)

@@ -33,27 +33,33 @@ static char g_ucRxBuff[32];
 void vs_spi_clk_cmd(void)
 {
 	MAP_SPIDisable(GSPI_BASE);
-	  MAP_SPIConfigSetExpClk(GSPI_BASE,MAP_PRCMPeripheralClockGet(PRCM_GSPI),
+	MAP_SPIConfigSetExpClk(GSPI_BASE,MAP_PRCMPeripheralClockGet(PRCM_GSPI),
 	                     VS_CLK_CMD,SPI_MODE_MASTER,SPI_SUB_MODE_0,
 	                     (SPI_SW_CTRL_CS |
 	                     SPI_4PIN_MODE |
 	                     SPI_TURBO_OFF |
 	                     SPI_CS_ACTIVEHIGH |
 	                     SPI_WL_8));
-	  MAP_SPIEnable(GSPI_BASE);
+	MAP_SPIEnable(GSPI_BASE);
+
+	DEASSERT_CS();
+	DEASSERT_DCS();
 }
 
 void vs_spi_clk_data(void)
 {
-		MAP_SPIDisable(GSPI_BASE);
-	  MAP_SPIConfigSetExpClk(GSPI_BASE,MAP_PRCMPeripheralClockGet(PRCM_GSPI),
+	MAP_SPIDisable(GSPI_BASE);
+	MAP_SPIConfigSetExpClk(GSPI_BASE,MAP_PRCMPeripheralClockGet(PRCM_GSPI),
 	                     VS_CLK_DATA,SPI_MODE_MASTER,SPI_SUB_MODE_0,
 	                     (SPI_SW_CTRL_CS |
 	                     SPI_4PIN_MODE |
 	                     SPI_TURBO_OFF |
 	                     SPI_CS_ACTIVEHIGH |
 	                     SPI_WL_8));
-	  MAP_SPIEnable(GSPI_BASE);
+	MAP_SPIEnable(GSPI_BASE);
+
+	DEASSERT_CS();
+	DEASSERT_DCS();
 }
 void vs_spi_open(void)
 {
@@ -96,38 +102,26 @@ void vs_rst(char cmd)
 		GPIOPinWrite(GPIOA0_BASE, 0x40, 0x00);
 }
 
-
-void vs_cs(char cmd)
-{
-	if (cmd)
-		GPIOPinWrite(GPIOA3_BASE, 0x40, 1 << (30 % 8));
-	else
-		GPIOPinWrite(GPIOA3_BASE, 0x40, 0x00);
-}
-
-void vs_dcs(char cmd)
-{
-	if (cmd)
-		GPIOPinWrite(GPIOA3_BASE, 0x80, 1 << (31 % 8));
-	else
-		GPIOPinWrite(GPIOA3_BASE, 0x80, 0x00);
-}
-
 int vs_write_cmd(char c)
 {
+	vs_spi_clk_cmd();
+
 	memset(g_ucTxBuff, '\0', 32);
 	g_ucTxBuff[0] = c;
 
 	while(!vs_req());
 
+	ASSERT_CS();
     MAP_SPITransfer(GSPI_BASE,(unsigned char *)g_ucTxBuff,(unsigned char *)g_ucRxBuff,1,
                 SPI_CS_ENABLE|SPI_CS_DISABLE);
-
+    DEASSERT_CS();
 	return 0;
 }
 
 int vs_write_data(char *d, int len)
 {
+	vs_spi_clk_data();
+
 	memset(g_ucTxBuff, '\0', 32);
 	memcpy(g_ucTxBuff, d, len);
 
